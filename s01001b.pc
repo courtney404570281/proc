@@ -1,0 +1,96 @@
+/****************************************************/
+/* Program name: s01001b.pc                         */
+/* Usage: s01001b                                   */
+/* Author: Jason                                    */
+/* Version: 1.01                                    */
+/* Date: 2003/7/17                                  */
+/* Description:                                     */
+/****************************************************/
+#include <string.h>
+#include <zenii.h>
+#include <stdio.h>
+
+#define  FETCH_ALLOW  100
+/****************************************************/
+/*           ORACLE HOST VARIABLE                   */
+/****************************************************/
+EXEC SQL BEGIN DECLARE SECTION;
+VARCHAR     dbs_id[30];
+
+VARCHAR     r_proc_date[100][10];
+char        proc_date[10];
+
+EXEC SQL END DECLARE SECTION;
+EXEC SQL INCLUDE sqlca.h;
+EXEC SQL INCLUDE oraca.h;
+/****************************************************/
+/*           GLOBAL VARIABLE                        */
+/****************************************************/
+char *program_name;
+long _batch_id;
+char *printer_id;
+FILE *ofp;
+char unit_id1;
+char unit_id2;
+char due_date[9];
+
+EXEC SQL WHENEVER SQLERROR GOTO sqlerror;
+/****************************************************/
+/*           MAIN                                   */
+/****************************************************/
+main(argc,argv)
+  int argc;
+  char **argv;
+{ 
+  char *f;
+  
+  program_name = argv[0];
+  if (argc != 4){
+     fprintf(stderr, "%s: Usage: %s <BATCH-ID> <ORACLE-ID> <UNIT-ID1> <UNIT-ID2> <DUE-DATE>\n [ver 20190306]\n",
+            program_name ,  ((f=strrchr(program_name,'/')) == NULL)? program_name : ++f );
+     ap_exit(9999,_batch_id,"Usage: <BATCH-ID> <ORACLE-ID> <UNIT-ID1> <UNIT-ID2> <DUE-DATE>");
+  }
+  
+  _batch_id = atol(argv[1]);
+  strcpy((char *)dbs_id.arr, argv[2]);
+  dbs_id.len = strlen((char *)dbs_id.arr);
+  connect_db(dbs_id.arr);
+/*  EXEC SQL CONNECT :dbs_id; */
+  strcpy(unit_id1, argv[3]);
+  strcpy(unit_id2, argv[4]);
+
+  EXEC SQL ALTER SESSION SET NLS_DATE_FORMAT = 'YYYYMMDD';
+  ap_init(_batch_id);
+  
+  strcpy(due_date, argv[5]);
+  
+  process(); 
+  
+  ap_exit(0,_batch_id,"main"); 
+  
+sqlerror:
+      dbs_error("main");
+      ap_exit(9,_batch_id,"main");
+}
+  
+process()
+{ 
+  	upd_press();
+}
+  
+upd_press()
+{
+     EXEC SQL
+      UPDATE U01T_UNITFILE A
+         SET A.PROC_DATE = TO_DATE (:due_date,'yyyy/mm/dd')
+       WHERE A.UNIT_ID >= :unit_id1
+         AND A.UNIT_ID <= :unit_id2   
+        ;
+
+     EXEC SQL COMMIT ;
+  return(0); 
+  
+sqlerror:
+     dbs_error("upd_press");
+     ap_exit(9,_batch_id,"upd_press");
+}

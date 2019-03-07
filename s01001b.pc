@@ -1,9 +1,9 @@
 /****************************************************/
 /* Program name: s01001b.pc                         */
 /* Usage: s01001b                                   */
-/* Author: Jason                                    */
+/* Author: Courtney                                 */
 /* Version: 1.01                                    */
-/* Date: 2003/7/17                                  */
+/* Date: 2019/3/6                                   */
 /* Description:                                     */
 /****************************************************/
 #include <string.h>

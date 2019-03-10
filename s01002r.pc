@@ -1,0 +1,307 @@
+/****************************************************/
+/* Program name:  s01002r.pc                        */
+/* Usage:  s01002r.pc                               */
+/* Author:  Courtney                                */
+/* Version:  1.00                                   */
+/* Date: 2019/3/8                                   */
+/* Description:                                     */
+/****************************************************/
+#include <string.h>
+#include <zenii.h>
+#include <stdio.h>
+#include <printer.h>
+
+#define  FETCH_ALLOW  100
+#define  LINE_OF_PAGE  53
+
+/****************************************************/
+/*           ORACLE HOST VARIABLE                   */
+/****************************************************/
+EXEC SQL BEGIN DECLARE SECTION;
+VARCHAR     dbs_id[30];
+
+VARCHAR     r_unit_id[FETCH_ALLOW][10];
+char        unit_id[10];
+short       i_r_unit_id[FETCH_ALLOW];
+short       i_unit_id;
+VARCHAR     r_unit_name[FETCH_ALLOW][141];
+char        unit_name[141];
+short       i_r_unit_name[FETCH_ALLOW];
+short       i_unit_name;
+VARCHAR     r_work_name[FETCH_ALLOW][25];
+char        work_name[25];
+short       i_r_work_name[FETCH_ALLOW];
+short       i_work_name;
+VARCHAR     r_proc_date[FETCH_ALLOW][11];
+char        proc_date[11];
+short       i_r_proc_date[FETCH_ALLOW];
+short       i_proc_date;
+
+
+EXEC SQL END DECLARE SECTION;
+EXEC SQL INCLUDE sqlca.h;
+EXEC SQL INCLUDE oraca.h;
+
+/****************************************************/
+/*           GLOBAL VARIABLE                        */
+/****************************************************/
+char *program_name;
+long _batch_id;
+char *printer_id;
+char sys_lp[11];
+char rpt_fname[50];
+char rpt_id[11];
+char out_date[10];
+char out_time[9];
+char exit_msg[50];
+char *p;
+FILE *ofp;
+int first_page=1;
+int line_cnt=LINE_OF_PAGE+1;
+
+char q_b_id[2];
+char q_unit_id1[10];
+char q_unit_id2[10];
+char out_page_no[3];
+char p_page_no=0;
+int i=0;
+int j=0;
+
+char dst[133];
+char ctrl_code[41];
+int  ctrl_len;
+
+EXEC SQL WHENEVER SQLERROR GOTO sqlerror;
+/****************************************************/
+/*           MAIN                                   */
+/****************************************************/
+main(argc,argv)
+  int argc;
+  char **argv;
+{
+  char *f;
+
+  if ((program_name = strrchr(argv[0],'/')) == NULL)
+       program_name = argv[0];
+  else
+       program_name++;
+
+  if (argc != 7)  {
+     fprintf(stderr, "%s: Usage: %s <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>\n [ver 20190308]\n",
+            program_name ,  ((f=strrchr(program_name,'/')) == NULL)? program_name : ++f );
+     ap_exit(9999,_batch_id,"Usage: <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>");
+    }
+
+  for(i=0;i<argc;i++)
+  {
+    if(strcmp(argv[i], "NHI_NULL")==0)
+    argv[i]="";
+  }
+
+  _batch_id = atol(argv[1]);
+
+  strcpy((char *)dbs_id.arr, argv[2]);
+  dbs_id.len = strlen((char *)dbs_id.arr);
+  connect_db((char *)dbs_id.arr);
+
+  ap_init(_batch_id);  
+
+  printer_id = argv[3];
+  strcpy(rpt_id, program_name);
+  strcpy(out_date, get_pdate());
+  strcpy(out_time, get_ptime());
+
+  strcpy(q_b_id,argv[4]);
+  strcpy(q_unit_id1,argv[5]);
+  strcpy(q_unit_id2,argv[6]);
+
+  process();
+
+  sprintf(exit_msg, "%s", program_name);
+  ap_exit(0, _batch_id ,exit_msg);
+
+  sqlerror:
+      dbs_error("main");
+      ap_exit(9,_batch_id,"main");
+}
+
+process()
+{
+  strcpy(sys_lp,prtget(printer_id));
+  if( sys_lp[0] == '\0') {
+       fprintf(stderr, "prtget : system printer <%s> not found\n",printer_id);
+       sprintf(exit_msg, "process: %s ", printer_id);
+       ap_exit(1001, _batch_id, exit_msg);
+    }
+
+  if( pctlgen(printer_id,q_b_id) <= 0 )   {
+       fprintf(stderr, "pctlgen_hp: printer <%s> data not found\n", printer_id);
+       sprintf(exit_msg, "process: %s ", printer_id);
+       ap_exit(1002, _batch_id, exit_msg);
+    }
+  printf("144\n");
+  while(read_data() == 0)  {
+    
+    header();
+    
+    memset(dst,'\0',133);
+    comm_insert(dst,out_page_no,13);
+    comm_insert(dst,"",35); 
+    comm_insert(dst,unit_id,38);
+    comm_insert(dst,unit_name,42);
+    comm_insert(dst,work_name,50);
+    comm_insert(dst,proc_date,58);  
+    fprintf(ofp, "%s\n",dst);
+    line_cnt++;
+  }
+    if  (!first_page)  {
+       tail();
+       if(fclose(ofp) != 0) {
+              fprintf(stderr, "close report file %s%ld error\n",
+                 rpt_fname,_batch_id);
+              sprintf(exit_msg, "process: %s%ld ", program_name,_batch_id);
+              ap_exit(1006, _batch_id, exit_msg);
+       }
+       /*if(prtlp(sys_lp, rpt_fname) != 0) {
+              fprintf(stderr, "print report file %s%ld error\n",
+                 program_name,_batch_id);
+              sprintf(exit_msg, "process: %s%ld ", program_name,_batch_id);
+              ap_exit(1005, _batch_id, exit_msg);
+       }*/
+    }
+}
+
+header()
+{
+  if (line_cnt > LINE_OF_PAGE) {
+    if(first_page) {
+      first_page=0;
+      strcpy(rpt_fname, prtname(program_name, _batch_id));
+      if(rpt_fname[0] == '\0')  {
+        fprintf(stderr, "get report file %s&ld error\n" ,
+                program_name,_batch_id);
+        sprintf(exit_msg, "header: %s%ld ",program_name,_batch_id);
+                ap_exit(1003, _batch_id, exit_msg);
+      };
+    if((ofp=fopen(rpt_fname, "w")) == NULL ) {
+      fprintf(stderr, "open report file %s%ld error\n",
+	     program_name,_batch_id);
+      sprintf(exit_msg,"header: %s%ld ",program_name,_batch_id);
+      	      ap_exit(1004, _batch_id, exit_msg);
+      };
+     memset(ctrl_code,'\0',sizeof(ctrl_code));
+     ctrl_len=pctl("reset",ctrl_code);
+     fwrite(ctrl_code,ctrl_len,1,ofp);
+     }
+  else
+     fprintf(ofp, "\f");
+
+  prt_title();
+  line_cnt = 1;
+   }
+}
+
+prt_title()
+{
+  fprintf(ofp, "報表編號: %-10s%25s單位資料清冊%25s列印日期:%9s\n",program_name,"","",out_date);
+  fprintf(ofp, "程式代號?: %-10s%62s頁    次: %-4d\n\n",program_name,"",++p_page_no);
+  fprintf(ofp, "=========================================================================================================\n");
+  fprintf(ofp, "單位代號  單位名稱  連絡人           作業日期  F\n");
+  prt_line();
+}
+
+tail()
+{
+  prt_line();
+  fprintf(ofp, "\n\n 列印時間:%9s   計%4d 頁\f", out_time, p_page_no);
+}
+
+prt_line()
+{
+  fprintf(ofp, "--------------------------------------------------");
+  fprintf(ofp, "-------------------------------------------------------\n");
+}
+
+read_data()
+{
+  static int first = 1,
+             this  = FETCH_ALLOW,
+             in    = FETCH_ALLOW,
+             till_red  = 0;
+  int i;
+	
+  EXEC SQL WHENEVER NOT FOUND CONTINUE;
+  if (first){
+      first = 0;
+      EXEC SQL DECLARE C CURSOR FOR
+          SELECT  A.UNIT_ID,
+                A.UNIT_NAME,
+                A.WORK_NAME,
+                TO_CDATE(A.PROC_DATE)          
+          FROM U01T_UNITFILE  A
+          WHERE A.UNIT_ID BETWEEN :q_unit_id1
+          AND :q_unit_id2
+          ;
+    
+     EXEC SQL OPEN C;
+ }  
+     if (this == in){  
+        EXEC SQL COMMIT WORK;
+        if ( this < FETCH_ALLOW){  
+           EXEC SQL CLOSE C;
+           return(1);  
+        }  
+        for (i = 0; i< FETCH_ALLOW ; i++) {  
+        memset(r_unit_id[i].arr,'\0',10);
+        r_unit_id[i].len = 0;
+        i_r_unit_id[i] = -1;
+        memset(r_unit_name[i].arr,'\0',141);
+        r_unit_name[i].len = 0;
+        i_r_unit_name[i] = -1;
+        memset(r_work_name[i].arr,'\0',25);
+        r_work_name[i].len = 0;
+        i_r_work_name[i] = -1;
+        memset(r_proc_date[i].arr,'\0',11);
+        r_proc_date[i].len = 0;
+        i_r_proc_date[i] = -1;
+
+        }  
+        in = 0;  
+        EXEC SQL FETCH C  
+              INTO :r_unit_id      :i_r_unit_id,
+                   :r_unit_name    :i_r_unit_name,
+                   :r_work_name    :i_r_work_name,
+                   :r_proc_date    :i_r_proc_date
+                   ;
+  
+        this = sqlca.sqlerrd[2] - till_red;  
+        till_red = sqlca.sqlerrd[2]; 
+        //printf("[%s]\n",sqlca.sqlerrd[2]);
+        if ( this == 0){  
+           EXEC SQL CLOSE C;  
+           return(1);  
+        }  
+     }   
+     r_unit_id[in].arr[r_unit_id[in].len] = '\0';
+     strcpy((char *)unit_id , (char *)r_unit_id[in].arr);
+     i_unit_id=i_r_unit_id[in];
+     r_unit_name[in].arr[r_unit_name[in].len] = '\0';
+     strcpy((char *)unit_name , (char *)r_unit_name[in].arr);
+     i_unit_name=i_r_unit_name[in];
+     r_work_name[in].arr[r_work_name[in].len] = '\0';
+     strcpy((char *)work_name , (char *)r_work_name[in].arr);
+     i_work_name=i_r_work_name[in];
+     r_proc_date[in].arr[r_proc_date[in].len] = '\0';
+     strcpy((char *)proc_date , (char *)r_proc_date[in].arr);
+     i_proc_date=i_r_proc_date[in];
+     
+ in=in+1;  
+ 
+ return(0);  
+  
+sqlerror:  
+         dbs_error("read_data");  
+         ap_exit(9,_batch_id,"read_data");          
+}  
+
+

@@ -1,9 +1,9 @@
 /****************************************************/
-/* Program name:  s01002r.pc                        */
-/* Usage:  s01002r.pc                               */
+/* Program name:  s01003r.pc                        */
+/* Usage:  s01003r.pc                               */
 /* Author:  Courtney                                */
 /* Version:  1.00                                   */
-/* Date: 2019/3/8                                   */
+/* Date: 2019/3/11                                   */
 /* Description:                                     */
 /****************************************************/
 #include <string.h>
@@ -24,18 +24,39 @@ VARCHAR     r_unit_id[FETCH_ALLOW][10];
 char        unit_id[10];
 short       i_r_unit_id[FETCH_ALLOW];
 short       i_unit_id;
-VARCHAR     r_unit_name[FETCH_ALLOW][141];
-char        unit_name[141];
+VARCHAR     r_unit_name[FETCH_ALLOW][30];
+char        unit_name[30];
 short       i_r_unit_name[FETCH_ALLOW];
 short       i_unit_name;
-VARCHAR     r_work_name[FETCH_ALLOW][25];
-char        work_name[25];
-short       i_r_work_name[FETCH_ALLOW];
-short       i_work_name;
-VARCHAR     r_proc_date[FETCH_ALLOW][11];
-char        proc_date[11];
-short       i_r_proc_date[FETCH_ALLOW];
-short       i_proc_date;
+VARCHAR     r_as_nhi_id[FETCH_ALLOW][11];
+char        as_nhi_id[11];
+short       i_r_as_nhi_id[FETCH_ALLOW];
+short       i_as_nhi_id;
+VARCHAR     r_ins_nhi_id[FETCH_ALLOW][11];
+char        ins_nhi_id[11];
+short       i_r_ins_nhi_id[FETCH_ALLOW];
+short       i_ins_nhi_id;
+VARCHAR     r_in_date[FETCH_ALLOW][11];
+char        in_date[11];
+short       i_r_in_date[FETCH_ALLOW];
+short       i_in_date;
+VARCHAR     r_ins_amt[FETCH_ALLOW][7];
+char        ins_amt[7];
+short       i_r_ins_amt[FETCH_ALLOW];
+short       i_ins_amt;
+VARCHAR     r_status[FETCH_ALLOW][2];
+char        status[2];
+short       i_r_status[FETCH_ALLOW];
+short       i_status;
+VARCHAR     r_name[FETCH_ALLOW][30];
+char        name[30];
+short       i_r_name[FETCH_ALLOW];
+short       i_name;
+VARCHAR     r_as_nhi_name[FETCH_ALLOW][30];
+char        as_nhi_name[30];
+short       i_r_as_nhi_name[FETCH_ALLOW];
+short       i_as_nhi_name;
+
 
 
 EXEC SQL END DECLARE SECTION;
@@ -62,6 +83,7 @@ int line_cnt=LINE_OF_PAGE+1;
 char q_b_id[2];
 char q_unit_id1[10];
 char q_unit_id2[10];
+char q_ins_nhi_id[11];
 char out_page_no[3];
 char p_page_no=0;
 int i=0;
@@ -86,10 +108,10 @@ main(argc,argv)
   else
        program_name++;
 
-  if (argc != 7)  {
-     fprintf(stderr, "%s: Usage: %s <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>\n [ver 20190308]\n",
+  if (argc < 7)  {
+     fprintf(stderr, "%s: Usage: %s <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2> <INS_NHI_ID>\n [ver 20190308]\n",
             program_name ,  ((f=strrchr(program_name,'/')) == NULL)? program_name : ++f );
-     ap_exit(9999,_batch_id,"Usage: <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>");
+     ap_exit(9999,_batch_id,"Usage: <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2> <INS_NHI_ID>");
     }
 
   for(i=0;i<argc;i++)
@@ -114,6 +136,11 @@ main(argc,argv)
   strcpy(q_b_id,argv[4]);
   strcpy(q_unit_id1,argv[5]);
   strcpy(q_unit_id2,argv[6]);
+  if (argc != 8){
+      argv[7] == "NHI_NULL";
+  } else {
+  strcpy(q_ins_nhi_id,argv[7]);
+  }
 
   process();
 
@@ -139,18 +166,19 @@ process()
        sprintf(exit_msg, "process: %s ", printer_id);
        ap_exit(1002, _batch_id, exit_msg);
     }
-  printf("144\n");
+  
   while(read_data() == 0)  {
     
     header();
     
     memset(dst,'\0',133);
-    comm_insert(dst,out_page_no,13);
-    comm_insert(dst,"",35); 
-    comm_insert(dst,unit_id,38);
-    comm_insert(dst,unit_name,42);
-    comm_insert(dst,work_name,50);
-    comm_insert(dst,proc_date,58);  
+    comm_insert(dst,as_nhi_id,1);
+    comm_insert(dst,name,13);
+    comm_insert(dst,ins_nhi_id,35);  
+    comm_insert(dst,name,55);
+    comm_insert(dst,in_date,72);
+    comm_insert(dst,ins_amt,85);
+    comm_insert(dst,status,95);
     fprintf(ofp, "%s\n",dst);
     line_cnt++;
   }
@@ -204,11 +232,14 @@ header()
 prt_title()
 {
   fprintf(ofp, "報表編號: %-10s%25s單位資料清冊%25s列印日期:%9s\n",program_name,"","",out_date);
-  fprintf(ofp, "程式代號?: %-10s%62s頁    次: %-4d\n\n",program_name,"",++p_page_no);
-  fprintf(ofp, "=========================================================================================================\n");
-  fprintf(ofp, "單位代號  單位名稱  連絡人           作業日期  \n");
+  fprintf(ofp, "程式代號: %-10s%74s頁    次: %-4d\n\n",program_name,"",++p_page_no);
+  fprintf(ofp, "單位代號: %-10s%30s  %-4s\n", unit_id,"", unit_name);
+  fprintf(ofp, "=======================================================================\n");
+  fprintf(ofp, "被保險人ID    姓    名             保險對象ID    姓    名         投保日期    投保金額    狀態 \n");
   prt_line();
 }
+
+
 
 tail()
 {
@@ -218,8 +249,8 @@ tail()
 
 prt_line()
 {
-  fprintf(ofp, "--------------------------------------------------");
-  fprintf(ofp, "-------------------------------------------------------\n");
+  fprintf(ofp, "---------------------------------------------------------");
+  fprintf(ofp, "---------------------------------------------------------\n");
 }
 
 read_data()
@@ -234,14 +265,26 @@ read_data()
   if (first){
       first = 0;
       EXEC SQL DECLARE C CURSOR FOR
-          SELECT  A.UNIT_ID,
-                A.UNIT_NAME,
-                A.WORK_NAME,
-                TO_CDATE(A.PROC_DATE)          
-          FROM U01T_UNITFILE  A
-          WHERE A.UNIT_ID BETWEEN :q_unit_id1
-          AND :q_unit_id2
-          ;
+        SELECT
+            a.unit_id,
+            a.unit_name,
+            decrypt(b.eas_nhi_id),
+            decrypt(b.eins_nhi_id),
+            to_cdate(b.in_date),
+            b.ins_amt,
+            b.status,
+            c.name
+        FROM
+            u01t_unitfile a,
+            u02t_inscur b,
+            u02t_asbas c
+        WHERE
+            a.unit_id >= :q_unit_id1
+        AND a.unit_id <= :q_unit_id2
+        AND A.UNIT_ID = B.UNIT_ID
+        AND B.EAS_NHI_ID = C.EAS_NHI_ID
+        AND (decrypt(b.eins_nhi_id) = :q_ins_nhi_id 
+        OR :q_ins_nhi_id IS NULL);
     
      EXEC SQL OPEN C;
  }  
@@ -255,28 +298,46 @@ read_data()
         memset(r_unit_id[i].arr,'\0',10);
         r_unit_id[i].len = 0;
         i_r_unit_id[i] = -1;
-        memset(r_unit_name[i].arr,'\0',141);
+        memset(r_unit_name[i].arr,'\0',30);
         r_unit_name[i].len = 0;
         i_r_unit_name[i] = -1;
-        memset(r_work_name[i].arr,'\0',25);
-        r_work_name[i].len = 0;
-        i_r_work_name[i] = -1;
-        memset(r_proc_date[i].arr,'\0',11);
-        r_proc_date[i].len = 0;
-        i_r_proc_date[i] = -1;
-
+        memset(r_as_nhi_id[i].arr,'\0',11);
+        r_as_nhi_id[i].len = 0;
+        i_r_as_nhi_id[i] = -1;
+        memset(r_ins_nhi_id[i].arr,'\0',11);
+        r_ins_nhi_id[i].len = 0;
+        i_r_ins_nhi_id[i] = -1;
+        memset(r_in_date[i].arr,'\0',11);
+        r_in_date[i].len = 0;
+        i_r_in_date[i] = -1;
+        memset(r_ins_amt[i].arr,'\0',7);
+        r_ins_amt[i].len = 0;
+        i_r_ins_amt[i] = -1;
+        memset(r_status[i].arr,'\0',2);
+        r_status[i].len = 0;
+        i_r_status[i] = -1;
+        memset(r_name[i].arr,'\0',30);
+        r_name[i].len = 0;
+        i_r_name[i] = -1;
+        // memset(r_as_nhi_name[i].arr,'\0',141);
+        // r_as_nhi_name[i].len = 0;
+        // i_r_as_nhi_name[i] = -1;
         }  
+        
         in = 0;  
         EXEC SQL FETCH C  
               INTO :r_unit_id      :i_r_unit_id,
                    :r_unit_name    :i_r_unit_name,
-                   :r_work_name    :i_r_work_name,
-                   :r_proc_date    :i_r_proc_date
+                   :r_as_nhi_id    :i_r_as_nhi_id,
+                   :r_ins_nhi_id   :i_r_ins_nhi_id,
+                   :r_in_date      :i_r_in_date,
+                   :r_ins_amt      :i_r_ins_amt,
+                   :r_status       :i_r_status,
+                   :r_name         :i_r_name             
                    ;
   
         this = sqlca.sqlerrd[2] - till_red;  
         till_red = sqlca.sqlerrd[2]; 
-        //printf("[%s]\n",sqlca.sqlerrd[2]);
         if ( this == 0){  
            EXEC SQL CLOSE C;  
            return(1);  
@@ -288,12 +349,28 @@ read_data()
      r_unit_name[in].arr[r_unit_name[in].len] = '\0';
      strcpy((char *)unit_name , (char *)r_unit_name[in].arr);
      i_unit_name=i_r_unit_name[in];
-     r_work_name[in].arr[r_work_name[in].len] = '\0';
-     strcpy((char *)work_name , (char *)r_work_name[in].arr);
-     i_work_name=i_r_work_name[in];
-     r_proc_date[in].arr[r_proc_date[in].len] = '\0';
-     strcpy((char *)proc_date , (char *)r_proc_date[in].arr);
-     i_proc_date=i_r_proc_date[in];
+     r_as_nhi_id[in].arr[r_as_nhi_id[in].len] = '\0';
+     strcpy((char *)as_nhi_id , (char *)r_as_nhi_id[in].arr);
+     i_as_nhi_id=i_r_as_nhi_id[in];
+     r_ins_nhi_id[in].arr[r_ins_nhi_id[in].len] = '\0';
+     strcpy((char *)ins_nhi_id , (char *)r_ins_nhi_id[in].arr);
+     i_ins_nhi_id=i_r_ins_nhi_id[in];
+     r_in_date[in].arr[r_in_date[in].len] = '\0';
+     strcpy((char *)in_date , (char *)r_in_date[in].arr);
+     i_in_date=i_r_in_date[in];
+     r_ins_amt[in].arr[r_ins_amt[in].len] = '\0';
+     strcpy((char *)ins_amt , (char *)r_ins_amt[in].arr);
+     i_ins_amt=i_r_ins_amt[in];
+     r_status[in].arr[r_status[in].len] = '\0';
+     strcpy((char *)status , (char *)r_status[in].arr);
+     i_status=i_r_status[in];
+     r_name[in].arr[r_name[in].len] = '\0';
+     strcpy((char *)name , (char *)r_name[in].arr);
+     i_name=i_r_name[in];
+     /*r_as_nhi_name[in].arr[r_as_nhi_name[in].len] = '\0';
+     strcpy((char *)as_nhi_name , (char *)r_as_nhi_name[in].arr);
+     i_as_nhi_name=i_r_as_nhi_name[in];*/
+     
      
  in=in+1;  
  

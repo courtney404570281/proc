@@ -24,8 +24,8 @@ VARCHAR     r_unit_id[FETCH_ALLOW][10];
 char        unit_id[10];
 short       i_r_unit_id[FETCH_ALLOW];
 short       i_unit_id;
-VARCHAR     r_unit_name[FETCH_ALLOW][30];
-char        unit_name[30];
+VARCHAR     r_unit_name[FETCH_ALLOW][141];
+char        unit_name[141];
 short       i_r_unit_name[FETCH_ALLOW];
 short       i_unit_name;
 VARCHAR     r_as_nhi_id[FETCH_ALLOW][11];
@@ -56,6 +56,7 @@ VARCHAR     r_as_nhi_name[FETCH_ALLOW][30];
 char        as_nhi_name[30];
 short       i_r_as_nhi_name[FETCH_ALLOW];
 short       i_as_nhi_name;
+char        unit_id_tmp[10];
 
 
 
@@ -170,17 +171,23 @@ process()
   while(read_data() == 0)  {
     
     header();
-    
+    //new function
+    if(strcmp(unit_id_tmp, unit_id) != 0) {      
+      prt_title();
+    }
+
     memset(dst,'\0',133);
     comm_insert(dst,as_nhi_id,1);
-    comm_insert(dst,name,13);
+    comm_insert(dst,as_nhi_name,13);
     comm_insert(dst,ins_nhi_id,35);  
     comm_insert(dst,name,55);
-    comm_insert(dst,in_date,72);
-    comm_insert(dst,ins_amt,85);
-    comm_insert(dst,status,95);
+    comm_insert(dst,in_date,77);
+    comm_insert(dst,ins_amt,93);
+    comm_insert(dst,status,103);
     fprintf(ofp, "%s\n",dst);
     line_cnt++;
+    
+    strcpy(unit_id_tmp,unit_id);
   }
     if  (!first_page)  {
        tail();
@@ -220,31 +227,37 @@ header()
      memset(ctrl_code,'\0',sizeof(ctrl_code));
      ctrl_len=pctl("reset",ctrl_code);
      fwrite(ctrl_code,ctrl_len,1,ofp);
+     prt_header();
      }
-  else
+  else {
      fprintf(ofp, "\f");
-
-  prt_title();
+     prt_header();
+     prt_title();
+  }
+  
   line_cnt = 1;
    }
 }
 
-prt_title()
+prt_header()
 {
   fprintf(ofp, "報表編號: %-10s%25s單位資料清冊%25s列印日期:%9s\n",program_name,"","",out_date);
-  fprintf(ofp, "程式代號: %-10s%74s頁    次: %-4d\n\n",program_name,"",++p_page_no);
-  fprintf(ofp, "單位代號: %-10s%30s  %-4s\n", unit_id,"", unit_name);
-  fprintf(ofp, "=======================================================================\n");
-  fprintf(ofp, "被保險人ID    姓    名             保險對象ID    姓    名         投保日期    投保金額    狀態 \n");
-  prt_line();
+  fprintf(ofp, "程式代號: %-10s%74s頁    次:  %-4d\n\n",program_name,"",++p_page_no);
 }
 
-
+prt_title()
+{
+    fprintf(ofp, "\n單位代號: %-10s%30s  %s\n", unit_id," ", unit_name);
+    printf("unit_name=[%s]\n",unit_name);
+    fprintf(ofp, "=======================================================================\n");
+    fprintf(ofp, "被保險人ID    姓    名             保險對象ID    姓    名         投保日期    投保金額    狀態 \n");
+    prt_line();
+}
 
 tail()
 {
   prt_line();
-  fprintf(ofp, "\n\n 列印時間:%9s   計%4d 頁\f", out_time, p_page_no);
+  fprintf(ofp, "\n\n 列印時間:%9s   計 %4d 頁\f", out_time, p_page_no);
 }
 
 prt_line()
@@ -273,24 +286,28 @@ read_data()
             to_cdate(b.in_date),
             b.ins_amt,
             b.status,
-            c.name
+            c.name,
+            d.name
         FROM
             u01t_unitfile a,
             u02t_inscur b,
-            u02t_asbas c
+            u02t_asbas c,
+            u02t_asbas d  
         WHERE
             a.unit_id >= :q_unit_id1
         AND a.unit_id <= :q_unit_id2
         AND A.UNIT_ID = B.UNIT_ID
-        AND B.EAS_NHI_ID = C.EAS_NHI_ID
+        AND B.EAS_NHI_ID = C.EAS_NHI_ID(+)
+        and b.eins_nhi_id= d.eas_nhi_id(+)
         AND (decrypt(b.eins_nhi_id) = :q_ins_nhi_id 
-        OR :q_ins_nhi_id IS NULL);
+        OR :q_ins_nhi_id IS NULL)
+        order by a.unit_id ,DECRYPT(b.EINS_NHI_ID);
     
      EXEC SQL OPEN C;
  }  
      if (this == in){  
         EXEC SQL COMMIT WORK;
-        if ( this < FETCH_ALLOW){  
+        if (this < FETCH_ALLOW){  
            EXEC SQL CLOSE C;
            return(1);  
         }  
@@ -298,7 +315,7 @@ read_data()
         memset(r_unit_id[i].arr,'\0',10);
         r_unit_id[i].len = 0;
         i_r_unit_id[i] = -1;
-        memset(r_unit_name[i].arr,'\0',30);
+        memset(r_unit_name[i].arr,'\0',141);
         r_unit_name[i].len = 0;
         i_r_unit_name[i] = -1;
         memset(r_as_nhi_id[i].arr,'\0',11);
@@ -319,9 +336,9 @@ read_data()
         memset(r_name[i].arr,'\0',30);
         r_name[i].len = 0;
         i_r_name[i] = -1;
-        // memset(r_as_nhi_name[i].arr,'\0',141);
-        // r_as_nhi_name[i].len = 0;
-        // i_r_as_nhi_name[i] = -1;
+        memset(r_as_nhi_name[i].arr,'\0',30);
+        r_as_nhi_name[i].len = 0;
+        i_r_as_nhi_name[i] = -1;
         }  
         
         in = 0;  
@@ -333,7 +350,8 @@ read_data()
                    :r_in_date      :i_r_in_date,
                    :r_ins_amt      :i_r_ins_amt,
                    :r_status       :i_r_status,
-                   :r_name         :i_r_name             
+                   :r_name         :i_r_name,
+                   :r_as_nhi_name  :i_r_as_nhi_name        
                    ;
   
         this = sqlca.sqlerrd[2] - till_red;  
@@ -367,9 +385,9 @@ read_data()
      r_name[in].arr[r_name[in].len] = '\0';
      strcpy((char *)name , (char *)r_name[in].arr);
      i_name=i_r_name[in];
-     /*r_as_nhi_name[in].arr[r_as_nhi_name[in].len] = '\0';
+     r_as_nhi_name[in].arr[r_as_nhi_name[in].len] = '\0';
      strcpy((char *)as_nhi_name , (char *)r_as_nhi_name[in].arr);
-     i_as_nhi_name=i_r_as_nhi_name[in];*/
+     i_as_nhi_name=i_r_as_nhi_name[in];
      
      
  in=in+1;  

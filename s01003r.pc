@@ -177,9 +177,9 @@ process()
     }
 
     memset(dst,'\0',133);
-    comm_insert(dst,as_nhi_id,1);
+    comm_insert(dst,ins_nhi_id,1);
     comm_insert(dst,as_nhi_name,15);
-    comm_insert(dst,ins_nhi_id,27);  
+    comm_insert(dst,as_nhi_id,27);  
     comm_insert(dst,name,41);
     comm_insert(dst,in_date,54);
     comm_insert(dst,ins_amt,66);
@@ -280,26 +280,26 @@ read_data()
             A.UNIT_ID,
             A.UNIT_NAME,
             DECRYPT(B.EAS_NHI_ID),
-            DECRYPT(b.EINS_NHI_ID),
-            TO_CDATE(b.in_date),
-            b.ins_amt,
-            b.status,
-            c.name,
-            d.name
+            DECRYPT(B.EINS_NHI_ID),
+            TO_CDATE(B.IN_DATE),
+            B.INS_AMT,
+            B.STATUS,
+            C.NAME,
+            D.NAME
         FROM
-            u01t_unitfile a,
-            u02t_inscur b,
-            u02t_asbas c,
-            u02t_asbas d  
+            U01T_UNITFILE A,
+            U02T_INSCUR B,
+            U02T_ASBAS C,
+            U02T_ASBAS D  
         WHERE
-            a.unit_id >= :q_unit_id1
-        AND a.unit_id <= :q_unit_id2
+            A.UNIT_ID >= :q_unit_id1
+        AND A.UNIT_ID <= :q_unit_id2
         AND A.UNIT_ID = B.UNIT_ID
         AND B.EAS_NHI_ID = C.EAS_NHI_ID(+)
-        and b.eins_nhi_id= d.eas_nhi_id(+)
-        AND (decrypt(b.eins_nhi_id) = :q_ins_nhi_id 
+        AND B.EINS_NHI_ID= D.EAS_NHI_ID(+)
+        AND (DECRYPT(B.EINS_NHI_ID) = :q_ins_nhi_id 
         OR :q_ins_nhi_id IS NULL)
-        order by a.unit_id ,DECRYPT(b.EINS_NHI_ID);
+        ORDER BY A.UNIT_ID ,DECRYPT(B.EINS_NHI_ID);
     
      EXEC SQL OPEN C;
  }  

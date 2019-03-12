@@ -139,18 +139,16 @@ process()
        sprintf(exit_msg, "process: %s ", printer_id);
        ap_exit(1002, _batch_id, exit_msg);
     }
-  printf("144\n");
+  
   while(read_data() == 0)  {
     
     header();
     
     memset(dst,'\0',133);
-    comm_insert(dst,out_page_no,13);
-    comm_insert(dst,"",35); 
-    comm_insert(dst,unit_id,38);
-    comm_insert(dst,unit_name,42);
-    comm_insert(dst,work_name,50);
-    comm_insert(dst,proc_date,58);  
+    comm_insert(dst,unit_id,1);
+    comm_insert(dst,unit_name,13);
+    comm_insert(dst,work_name,67);
+    comm_insert(dst,proc_date,88);  
     fprintf(ofp, "%s\n",dst);
     line_cnt++;
   }
@@ -203,10 +201,10 @@ header()
 
 prt_title()
 {
-  fprintf(ofp, "報表編號: %-10s%25s單位資料清冊%25s列印日期:%9s\n",program_name,"","",out_date);
-  fprintf(ofp, "程式代號?: %-10s%62s頁    次: %-4d\n\n",program_name,"",++p_page_no);
+  fprintf(ofp, "報表編號: %-10s%25s 單位資料清冊 %25s 列印日期:%9s\n",program_name,"","",out_date);
+  fprintf(ofp, "程式代號: %-10s%64s頁    次: %-4d\n\n",program_name,"",++p_page_no);
   fprintf(ofp, "=========================================================================================================\n");
-  fprintf(ofp, "單位代號  單位名稱  連絡人           作業日期  \n");
+  fprintf(ofp, "單位代號     單位名稱                                               連絡人               作業日期  \n");
   prt_line();
 }
 

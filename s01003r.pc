@@ -178,12 +178,12 @@ process()
 
     memset(dst,'\0',133);
     comm_insert(dst,as_nhi_id,1);
-    comm_insert(dst,as_nhi_name,13);
-    comm_insert(dst,ins_nhi_id,35);  
-    comm_insert(dst,name,55);
-    comm_insert(dst,in_date,77);
-    comm_insert(dst,ins_amt,93);
-    comm_insert(dst,status,103);
+    comm_insert(dst,as_nhi_name,15);
+    comm_insert(dst,ins_nhi_id,27);  
+    comm_insert(dst,name,41);
+    comm_insert(dst,in_date,54);
+    comm_insert(dst,ins_amt,66);
+    comm_insert(dst,status,79);
     fprintf(ofp, "%s\n",dst);
     line_cnt++;
     
@@ -241,29 +241,27 @@ header()
 
 prt_header()
 {
-  fprintf(ofp, "報表編號: %-10s%25s單位資料清冊%25s列印日期:%9s\n",program_name,"","",out_date);
-  fprintf(ofp, "程式代號: %-10s%74s頁    次:  %-4d\n\n",program_name,"",++p_page_no);
+  fprintf(ofp, "報表編號: %-10s%20s 單位資料清冊 %20s 列印日期:%9s\n",program_name,"","",out_date);
+  fprintf(ofp, "程式代號: %-10s%54s頁    次: %-4d\n\n",program_name,"",++p_page_no);
 }
 
 prt_title()
 {
-    fprintf(ofp, "\n單位代號: %-10s%30s  %s\n", unit_id," ", unit_name);
-    printf("unit_name=[%s]\n",unit_name);
-    fprintf(ofp, "=======================================================================\n");
-    fprintf(ofp, "被保險人ID    姓    名             保險對象ID    姓    名         投保日期    投保金額    狀態 \n");
+    fprintf(ofp, "\n單位代號: %-10s  %s\n", unit_id, unit_name);
+    fprintf(ofp, "==============================================================================================\n");
+    fprintf(ofp, "被保險人ID    姓    名    保險對象ID    姓    名     投保日期    投保金額    狀態 \n");
     prt_line();
 }
 
 tail()
 {
   prt_line();
-  fprintf(ofp, "\n\n 列印時間:%9s   計 %4d 頁\f", out_time, p_page_no);
+  fprintf(ofp, "\n\n 列印時間:%9s   計 %4d   頁\f", out_time, p_page_no);
 }
 
 prt_line()
 {
-  fprintf(ofp, "---------------------------------------------------------");
-  fprintf(ofp, "---------------------------------------------------------\n");
+  fprintf(ofp, "----------------------------------------------------------------------------------------------\n");
 }
 
 read_data()
@@ -279,11 +277,11 @@ read_data()
       first = 0;
       EXEC SQL DECLARE C CURSOR FOR
         SELECT
-            a.unit_id,
-            a.unit_name,
-            decrypt(b.eas_nhi_id),
-            decrypt(b.eins_nhi_id),
-            to_cdate(b.in_date),
+            A.UNIT_ID,
+            A.UNIT_NAME,
+            DECRYPT(B.EAS_NHI_ID),
+            DECRYPT(b.EINS_NHI_ID),
+            TO_CDATE(b.in_date),
             b.ins_amt,
             b.status,
             c.name,

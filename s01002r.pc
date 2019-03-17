@@ -87,9 +87,9 @@ main(argc,argv)
        program_name++;
 
   if (argc != 7)  {
-     fprintf(stderr, "%s: Usage: %s <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>\n [ver 20190308]\n",
+     fprintf(stderr, "%s: Usage: %s <BATCH-ID> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>\n [ver 20190308]\n",
             program_name ,  ((f=strrchr(program_name,'/')) == NULL)? program_name : ++f );
-     ap_exit(9999,_batch_id,"Usage: <BATCH-NO> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>");
+     ap_exit(9999,_batch_id,"Usage: <BATCH-ID> <ORACLE-ID> <PRINTER-NO> <BRANCH_ID> <UNIT_ID1> <UNIT_ID2>");
     }
 
   for(i=0;i<argc;i++)
